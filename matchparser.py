@@ -17,7 +17,7 @@ class Match:
     self.end_timestamp = self.num_games * 60 * 60 + self.timestamp
 
   def get_key(self):
-    return conform_str('{}|{}|{}'.format(self.stage, self.round, self.timestamp))
+    return conform_str('{}|{}|{}'.format(self.stage, self.round, self.index))
 
   def get_summary(self):
     return f'{self.team1} vs {self.team2} - {self.stage} / {self.round}'
@@ -52,8 +52,15 @@ def parse_event(url):
   popups = soup.find_all(class_='bracket-popup')
   matches = {}
 
+  i = 0
+  current_stage_round = ""
   for popup in popups:
     match = get_match(popup)
+    if match.stage + match.round != current_stage_round:
+      current_stage_round = match.stage + match.round
+      i = 0
+    match.index = i
+    i += 1
     matches[match.get_key()] = match
 
   return Event(title, matches)

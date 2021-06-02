@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 import dateutil.parser
 import re
+import time
 
 def get_calendar_doc(firestore, url):
   return firestore.collection('calendars').document(get_key_from_url(url))
@@ -19,9 +20,7 @@ def get_unix_time_from_iso(iso):
   return int(dateutil.parser.parse(iso).timestamp())
 
 def get_key_from_event(event):
-  match = re.match(r'.* - (.*) / (.*)', event['summary'])
-  timestamp = get_unix_time_from_iso(event['start']['dateTime'])
-  return matchparser.conform_str(f'{match.group(1)}|{match.group(2)}|{timestamp}')
+  return event['description']
 
 def create_calendar(firestore, gcal, url, summary):
   calendar = {
@@ -49,6 +48,7 @@ def clear_calendar(gcal, calendar_id):
   events = gcal.events().list(calendarId=calendar_id).execute()
   for event in events['items']:
     gcal.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
+  print('Cleared calendar')
 
 def event_has_delta(old_event, new_event):
   if new_event['summary'] != old_event['summary']:
@@ -78,7 +78,8 @@ def upsert_calendar_event(gcal, calendar_id, existing_events_map, match):
     },
     'end': {
       'dateTime': end
-    }
+    },
+    'description': match.get_key()
   }
 
   if match.get_key() in existing_events_map:
@@ -109,9 +110,6 @@ def main(url):
   if doc.exists:
     calendar_id = doc.to_dict()['id']
     print('Calendar exists with id ' + calendar_id)
-    print(doc.to_dict())
-    gcal.calendars().update(calendarId=calendar_id, body={'summary': 'WePlay AniMajor'}).execute()
-    return
   else:
     print('Calendar does not exist, creating...')
     calendar_id = create_calendar(firestore, gcal, url, event.title)
