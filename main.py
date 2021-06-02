@@ -15,9 +15,12 @@ def get_key_from_url(url):
   key = url[i + len('liquipedia.net/'):]
   return key.replace('/', '|')
 
+def get_unix_time_from_iso(iso):
+  return int(dateutil.parser.parse(iso).timestamp())
+
 def get_key_from_event(event):
   match = re.match(r'.* - (.*) / (.*)', event['summary'])
-  timestamp = int(dateutil.parser.parse(event['start']['dateTime']).timestamp())
+  timestamp = get_unix_time_from_iso(event['start']['dateTime'])
   return matchparser.conform_str(f'{match.group(1)}|{match.group(2)}|{timestamp}')
 
 def create_calendar(firestore, gcal, url, summary):
@@ -48,11 +51,21 @@ def clear_calendar(gcal, calendar_id):
     gcal.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
 
 def event_has_delta(old_event, new_event):
-  for key in new_event:
-    if key not in old_event:
-      return True
-    elif new_event[key] != old_event[key]:
-      return True
+  if new_event['summary'] != old_event['summary']:
+    return True
+
+  new_start = get_unix_time_from_iso(new_event['start']['dateTime'])
+  old_start = get_unix_time_from_iso(old_event['start']['dateTime'])
+
+  if new_start != old_start:
+    return True
+
+  new_end = get_unix_time_from_iso(new_event['end']['dateTime'])
+  old_end = get_unix_time_from_iso(old_event['end']['dateTime'])
+
+  if new_end != old_end:
+    return True
+
   return False
 
 def upsert_calendar_event(gcal, calendar_id, existing_events_map, match):
@@ -96,6 +109,9 @@ def main(url):
   if doc.exists:
     calendar_id = doc.to_dict()['id']
     print('Calendar exists with id ' + calendar_id)
+    print(doc.to_dict())
+    gcal.calendars().update(calendarId=calendar_id, body={'summary': 'WePlay AniMajor'}).execute()
+    return
   else:
     print('Calendar does not exist, creating...')
     calendar_id = create_calendar(firestore, gcal, url, event.title)

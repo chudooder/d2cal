@@ -1,6 +1,5 @@
 from google.oauth2 import service_account
 import googleapiclient.discovery
-import os
 
 import firebase_admin
 from firebase_admin import credentials
@@ -16,8 +15,9 @@ def get_calendar_client():
   return calendar
 
 def get_firestore_client():
-  cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
-  firebase_admin.initialize_app(cred, {
-    'projectId': 'd2cal-315518'
-  })
+  if not firebase_admin._apps:
+    cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
+    firebase_admin.initialize_app(cred, {
+      'projectId': 'd2cal-315518'
+    })
   return firestore.client()
