@@ -41,7 +41,7 @@ def get_match(popup):
 
   elif tbody != None:
     th = tbody.find('th')
-    return Match(headline.string, th.string, timestamp, left_team, right_team, num_games)
+    return Match(headline.get_text().strip(), th.get_text().strip(), timestamp, left_team, right_team, num_games)
 
 def parse_event(url):
   res = requests.get(url)
@@ -56,6 +56,7 @@ def parse_event(url):
   current_stage_round = ""
   for popup in popups:
     match = get_match(popup)
+    print(match.get_summary())
     if match.stage + match.round != current_stage_round:
       current_stage_round = match.stage + match.round
       i = 0
