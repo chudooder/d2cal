@@ -44,9 +44,21 @@ def create_calendar_acls(gcal, calendar_id):
   rule = gcal.acl().insert(calendarId=calendar_id, body=rule).execute()
   return rule['id']
 
+def get_all_events(gcal, calendar_id):
+  page_token = None
+  all_events = []
+  while True:
+    events = gcal.events().list(calendarId=calendar_id, pageToken=page_token).execute()
+    page_token = events.get('nextPageToken')
+    all_events = all_events + events['items']
+    if not page_token:
+      break
+
+  return all_events
+
 def clear_calendar(gcal, calendar_id):
-  events = gcal.events().list(calendarId=calendar_id).execute()
-  for event in events['items']:
+  events = get_all_events(gcal, calendar_id)
+  for event in events:
     gcal.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
   print('Cleared calendar')
 
@@ -91,6 +103,7 @@ def upsert_calendar_event(gcal, calendar_id, existing_events_map, match):
       print('Existing event found with id ' + event_id + ' but no changes found, skipping')
   else:
     event = gcal.events().insert(calendarId=calendar_id, body=event).execute()
+    print('Created new event with id ' + event['id'])
   
 
 def pubsub_main(event, context):
@@ -117,7 +130,7 @@ def main(url):
     acl_id = create_calendar_acls(gcal, doc.to_dict()['id'])
     print('Created access control list with id: ' + acl_id)
 
-  existing_events = gcal.events().list(calendarId=calendar_id).execute()['items']
+  existing_events = get_all_events(gcal, calendar_id)
   existing_events_map = {get_key_from_event(event): event for event in existing_events}
 
   for match_key, match in matches.items():
